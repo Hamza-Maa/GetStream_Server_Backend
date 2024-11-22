@@ -45,7 +45,7 @@ app.post('/create-call', async (req, res) => {
         const { userId } = req.body;
 
         const callType = 'default';
-        const callId = uuidv4();
+        const callId = uuidv4(); // Server generates callId
         const call = client.video.call(callType, callId);
 
         const members = [
