@@ -5,8 +5,8 @@ const { v4: uuidv4 } = require('uuid');
 const app = express();
 const port = 3000;
 
-const apiKey = 'your_api_key';
-const apiSecret = 'your_api_secret';
+const apiKey = 'hnut54rtgksj';
+const apiSecret = 'nr5pc64bjjdn6cbkycwdpv3qye9fsef54puhv7jjm3wqzhxk2fdurfhrsyb4gadx';
 
 const client = new StreamClient(apiKey, apiSecret, { timeout: 3000 });
 
