@@ -34,7 +34,7 @@ app.post('/create-call', async (req, res) => {
         });
 
         const callType = 'default';
-        const callId = uuidv4(); // Generate a unique call ID
+        const callId = `channel_${Math.floor(10000 + Math.random() * 90000)}`;
         const call = client.video.call(callType, callId);
 
         const members = [
