@@ -15,7 +15,7 @@ app.use(express.json());
 // Endpoint to create user and generate token
 app.post('/generate-token', async (req, res) => {
     try {
-        const userId = uuidv4();
+        const userId = uuidv4(); // Create a unique user ID
         const newUser = {
             id: userId,
             role: 'user',
@@ -50,7 +50,6 @@ app.post('/create-call', async (req, res) => {
 
         const members = [
             { user_id: userId, role: 'admin' },
-            { user_id: 'jack' } // Example additional member
         ];
         const customData = { color: 'blue' };
 
@@ -64,6 +63,31 @@ app.post('/create-call', async (req, res) => {
 
         await call.create(callData);
         res.json({ callId });
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ error: 'Internal Server Error' });
+    }
+});
+
+// Endpoint to join a call
+app.post('/join-call', async (req, res) => {
+    try {
+        const { callId, userId } = req.body;
+
+        // Generate a token for the user
+        const validityInSeconds = 60 * 60; // Token valid for 1 hour
+        const token = client.generateUserToken({
+            user_id: userId,
+            validity_in_seconds: validityInSeconds
+        });
+
+        // Add the user to the call
+        const call = client.video.call('default', callId);
+        await call.updateCallMembers({
+            update_members: [{ user_id: userId, role: 'user' }]
+        });
+
+        res.json({ callId, userId, token });
     } catch (error) {
         console.error(error);
         res.status(500).json({ error: 'Internal Server Error' });
