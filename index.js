@@ -5,8 +5,8 @@ const { v4: uuidv4 } = require('uuid');
 const app = express();
 const port = 3000;
 
-const apiKey = 'hnut54rtgksj';
-const apiSecret = 'nr5pc64bjjdn6cbkycwdpv3qye9fsef54puhv7jjm3wqzhxk2fdurfhrsyb4gadx';
+const apiKey = 'hnut54rtgksj'; // Replace with your actual API key
+const apiSecret = 'nr5pc64bjjdn6cbkycwdpv3qye9fsef54puhv7jjm3wqzhxk2fdurfhrsyb4gadx'; // Replace with your actual API secret
 
 const client = new StreamClient(apiKey, apiSecret, { timeout: 3000 });
 
@@ -38,7 +38,7 @@ app.post('/create-call', async (req, res) => {
         const call = client.video.call(callType, callId);
 
         const members = [
-            { user_id: userId, role: 'admin' },
+            { user_id: userId, role: 'admin' }
         ];
         const customData = { color: 'blue' };
 
@@ -55,17 +55,29 @@ app.post('/create-call', async (req, res) => {
 
         res.json({ userId, token, callId });
     } catch (error) {
-        console.error(error);
+        console.error('Error creating call:', error);
         res.status(500).json({ error: 'Internal Server Error' });
     }
 });
 
-// Endpoint to join a call
+// Endpoint to join a call with new user ID
 app.post('/join-call', async (req, res) => {
     try {
-        const { callId, userId } = req.body;
+        const { callId } = req.body;
+        const userId = uuidv4(); // Generate a unique user ID
 
-        // Generate a token for the user
+        // Create a new user
+        const newUser = {
+            id: userId,
+            role: 'user',
+            name: `User-${userId}`,
+            image: 'link/to/profile/image',
+            custom: { color: 'green' }
+        };
+
+        await client.upsertUsers([newUser]);
+
+        // Generate a token for the new user
         const validityInSeconds = 60 * 60; // Token valid for 1 hour
         const token = client.generateUserToken({
             user_id: userId,
@@ -80,7 +92,7 @@ app.post('/join-call', async (req, res) => {
 
         res.json({ callId, userId, token });
     } catch (error) {
-        console.error(error);
+        console.error('Error joining call:', error);
         res.status(500).json({ error: 'Internal Server Error' });
     }
 });
