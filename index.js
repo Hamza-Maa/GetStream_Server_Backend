@@ -1,104 +1,75 @@
 const express = require('express');
+const { StreamClient } = require('@stream-io/node-sdk');
 const { v4: uuidv4 } = require('uuid');
-const dotenv = require('dotenv');
-const Stream = require('getstream');
-
-// Load environment variables
-dotenv.config();
 
 const app = express();
-const PORT = process.env.PORT || 3000;
+const port = 3000;
 
-// Initialize Stream client
-const client = Stream.connect(
-  process.env.STREAM_API_KEY, // Your API key from Stream dashboard
-  process.env.STREAM_API_SECRET, // Your API secret from Stream dashboard
-  process.env.STREAM_APP_ID // Your app ID (if required)
-);
+const apiKey = 'your_api_key';
+const apiSecret = 'your_api_secret';
 
-// Middleware to parse JSON requests
+const client = new StreamClient(apiKey, apiSecret, { timeout: 3000 });
+
 app.use(express.json());
 
-// Create a new video call
+// Endpoint to create user and generate token
+app.post('/generate-token', async (req, res) => {
+    try {
+        const userId = uuidv4();
+        const newUser = {
+            id: userId,
+            role: 'user',
+            name: `User-${userId}`,
+            image: 'link/to/profile/image',
+            custom: { color: 'red' }
+        };
+
+        await client.upsertUsers([newUser]);
+
+        const validityInSeconds = 60 * 60; // Token valid for 1 hour
+        const token = client.generateUserToken({
+            user_id: userId,
+            validity_in_seconds: validityInSeconds
+        });
+
+        res.json({ userId, token });
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ error: 'Internal Server Error' });
+    }
+});
+
+// Endpoint to create a call
 app.post('/create-call', async (req, res) => {
-  const userId = uuidv4();  // Generate a unique user ID for the host
-  const callId = uuidv4();  // Generate a unique call ID
-  
-  try {
-    // Create a user in the Stream system
-    const user = {
-      id: userId, 
-      role: 'user', // Default role is 'user', adjust based on your needs
-    };
-    await client.upsertUsers([user]);  // Upsert user to the Stream database
-    
-    // Generate a token for the user to join the call
-    const token = client.generateUserToken({
-      user_id: userId,
-      validity_in_seconds: 60 * 60, // Token validity (1 hour)
-    });
+    try {
+        const { userId } = req.body;
 
-    // Create a new call with the specified ID and settings
-    const call = client.video.call('default', callId);
-    await call.create({
-      data: {
-        created_by_id: userId,
-        members: [{ user_id: userId, role: 'admin' }], // Adding the user as the admin
-        custom: { color: 'blue' }, // Optional custom data
-      },
-    });
+        const callType = 'default';
+        const callId = uuidv4();
+        const call = client.video.call(callType, callId);
 
-    // Respond with the call ID, user ID, and token
-    res.status(200).json({
-      userId,
-      callId,
-      token,
-    });
-  } catch (error) {
-    console.error('Error creating call:', error);
-    res.status(500).json({ error: 'Failed to create call' });
-  }
+        const members = [
+            { user_id: userId, role: 'admin' },
+            { user_id: 'jack' } // Example additional member
+        ];
+        const customData = { color: 'blue' };
+
+        const callData = {
+            data: {
+                created_by_id: userId,
+                members: members,
+                custom: customData
+            }
+        };
+
+        await call.create(callData);
+        res.json({ callId });
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ error: 'Internal Server Error' });
+    }
 });
 
-// Endpoint to join a call (server generates userId here)
-app.post('/join-call', async (req, res) => {
-  const { callId } = req.body;
-
-  // Generate a unique user ID for the participant
-  const userId = uuidv4();
-  
-  try {
-    // Create the user in the Stream system
-    const user = {
-      id: userId,
-      role: 'user', // Default role is 'user', adjust as needed
-    };
-    await client.upsertUsers([user]);
-
-    // Generate a token for the user to join the call
-    const token = client.generateUserToken({
-      user_id: userId,
-      validity_in_seconds: 60 * 60, // Token validity (1 hour)
-    });
-
-    // Optionally, add the user to the call as a member
-    const call = client.video.call('default', callId);
-    await call.updateCallMembers({
-      update_members: [{ user_id: userId }],
-    });
-
-    res.status(200).json({
-      message: 'Joined call successfully',
-      userId,  // Return the generated userId
-      token,   // Return the token for the user to join the call
-    });
-  } catch (error) {
-    console.error('Error joining call:', error);
-    res.status(500).json({ error: 'Failed to join call' });
-  }
-});
-
-// Start the server
-app.listen(PORT, () => {
-  console.log(`Server is running on http://localhost:${PORT}`);
+app.listen(port, () => {
+    console.log(`Server is running on http://localhost:${port}`);
 });
