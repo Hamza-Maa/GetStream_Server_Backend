@@ -1,7 +1,7 @@
 const express = require('express');
 const { v4: uuidv4 } = require('uuid');
 const dotenv = require('dotenv');
-const { Stream } = require('getstream');
+const Stream = require('getstream');
 
 // Load environment variables
 dotenv.config();
@@ -10,11 +10,11 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 
 // Initialize Stream client
-const client = new Stream({
-  apiKey: process.env.STREAM_API_KEY,
-  apiSecret: process.env.STREAM_API_SECRET,
-  timeout: 3000, // Timeout in ms for API requests
-});
+const client = Stream.connect(
+  process.env.STREAM_API_KEY, // Your API key from Stream dashboard
+  process.env.STREAM_API_SECRET, // Your API secret from Stream dashboard
+  process.env.STREAM_APP_ID // Your app ID (if required)
+);
 
 // Middleware to parse JSON requests
 app.use(express.json());
