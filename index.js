@@ -39,7 +39,6 @@ app.post('/create-call', async (req, res) => {
 
         const members = [
             { user_id: userId, role: 'admin' },
-            { user_id: 'jack' } // Example additional member
         ];
         const customData = { color: 'blue' };
 
