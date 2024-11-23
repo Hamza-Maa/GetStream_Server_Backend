@@ -115,6 +115,10 @@ app.post('/create-livestream', async (req, res) => {
 app.post('/join-call', async (req, res) => {
     try {
         const { callId } = req.body;
+        if (!callId) {
+            return res.status(400).json({ error: 'Call ID is required' });
+        }
+
         const userId = uuidv4(); // Generate a unique user ID
 
         // Create a new user
@@ -136,15 +140,15 @@ app.post('/join-call', async (req, res) => {
         });
 
         // Add the user to the call
-        const call = client.video.call('default', callId);
+        const call = client.video.call('default', callId); // Ensure 'default' is the correct call type
         await call.updateCallMembers({
             update_members: [{ user_id: userId, role: 'user' }]
         });
 
-        res.json({ callId, userId, token });
+        res.json({ success: true, callId, userId, token });
     } catch (error) {
         console.error('Error joining call:', error);
-        res.status(500).json({ error: 'Internal Server Error' });
+        res.status(500).json({ error: 'Internal Server Error', details: error.message });
     }
 });
 
