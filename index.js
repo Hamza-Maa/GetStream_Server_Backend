@@ -60,6 +60,57 @@ app.post('/create-call', async (req, res) => {
     }
 });
 
+// Merged endpoint to create user, generate token, and create livestream
+app.post('/create-livestream', async (req, res) => {
+    try {
+        const userId = uuidv4(); // Generate a unique user ID
+        const newUser = {
+            id: userId,
+            role: 'user',
+            name: `User-${userId}`,
+            image: 'link/to/profile/image',
+            custom: { color: 'red' }
+        };
+
+        // Create user
+        await client.upsertUsers([newUser]);
+
+        const validityInSeconds = 60 * 60; // Token valid for 1 hour
+        const token = client.generateUserToken({
+            user_id: userId,
+            validity_in_seconds: validityInSeconds
+        });
+
+        const callType = 'livestream';
+        const callId = `channel_${Math.floor(10000 + Math.random() * 90000)}`;
+        const call = client.video.call(callType, callId);
+
+        const members = [
+            { user_id: userId, role: 'admin' }
+        ];
+        const customData = { color: 'blue' };
+
+        const callData = {
+            data: {
+                created_by_id: userId,
+                members: members,
+                custom: customData
+            }
+        };
+
+        // Create call
+        await call.create(callData);
+
+        // Set the call live
+        await call.goLive({ start_hls: true, start_recording: true });
+
+        res.json({ userId, token, callId });
+    } catch (error) {
+        console.error('Error creating livestream:', error);
+        res.status(500).json({ error: 'Internal Server Error' });
+    }
+});
+
 // Endpoint to join a call with new user ID
 app.post('/join-call', async (req, res) => {
     try {
