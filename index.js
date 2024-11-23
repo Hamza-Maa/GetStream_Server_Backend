@@ -148,6 +148,43 @@ app.post('/join-call', async (req, res) => {
     }
 });
 
+// Endpoint to join a live stream with new user ID
+app.post('/join-livestream', async (req, res) => {
+    try {
+        const { callId } = req.body;
+        const userId = uuidv4(); // Generate a unique user ID
+
+        // Create a new user
+        const newUser = {
+            id: userId,
+            role: 'user',
+            name: `User-${userId}`,
+            image: 'link/to/profile/image',
+            custom: { color: 'green' }
+        };
+
+        await client.upsertUsers([newUser]);
+
+        // Generate a token for the new user
+        const validityInSeconds = 60 * 60; // Token valid for 1 hour
+        const token = client.generateUserToken({
+            user_id: userId,
+            validity_in_seconds: validityInSeconds
+        });
+
+        // Add the user to the call
+        const call = client.video.call('livestream', callId);
+        await call.updateCallMembers({
+            update_members: [{ user_id: userId, role: 'user' }]
+        });
+
+        res.json({ callId, userId, token });
+    } catch (error) {
+        console.error('Error joining live stream:', error);
+        res.status(500).json({ error: 'Internal Server Error' });
+    }
+});
+
 app.listen(port, () => {
     console.log(`Server is running on http://localhost:${port}`);
 });
