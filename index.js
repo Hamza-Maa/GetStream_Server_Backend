@@ -189,6 +189,60 @@ app.post('/join-livestream', async (req, res) => {
     }
 });
 
+// Endpoint to sechdule a video call
+app.post('/schedule-meeting', async (req, res) => {
+    try {
+        const { date } = req.body; // Expect date input from the client
+        if (!date) {
+            return res.status(400).json({ error: 'Date is required' });
+        }
+
+        const userId = uuidv4(); // Generate a unique user ID
+        const newUser = {
+            id: userId,
+            role: 'user',
+            name: `User-${userId}`,
+            image: 'link/to/profile/image',
+            custom: { color: 'red' }
+        };
+
+        // Create user
+        await client.upsertUsers([newUser]);
+
+        const validityInSeconds = 60 * 60; // Token valid for 1 hour
+        const token = client.generateUserToken({
+            user_id: userId,
+            validity_in_seconds: validityInSeconds
+        });
+
+        const callType = 'default';
+        const callId = `channel_${Math.floor(10000 + Math.random() * 90000)}`;
+        const call = client.video.call(callType, callId);
+
+        const members = [
+            { user_id: userId, role: 'admin' }
+        ];
+        const customData = { color: 'blue', scheduledDate: date };
+
+        const callData = {
+            data: {
+                created_by_id: userId,
+                members: members,
+                custom: customData
+            }
+        };
+
+        // Create call
+        await call.create(callData);
+
+        res.json({ userId, token, callId, scheduledDate: date });
+    } catch (error) {
+        console.error('Error scheduling meeting:', error);
+        res.status(500).json({ error: 'Internal Server Error' });
+    }
+});
+
+
 app.listen(port, () => {
     console.log(`Server is running on http://localhost:${port}`);
 });
