@@ -12,6 +12,8 @@ const client = new StreamClient(apiKey, apiSecret, { timeout: 3000 });
 
 app.use(express.json());
 
+let scheduledMeetings = []; // In-memory array to store scheduled meetings
+
 // Merged endpoint to create user, generate token, and create call
 app.post('/create-call', async (req, res) => {
     try {
@@ -189,7 +191,7 @@ app.post('/join-livestream', async (req, res) => {
     }
 });
 
-// Endpoint to sechdule a video call
+// Endpoint to schedule a video call
 app.post('/schedule-meeting', async (req, res) => {
     try {
         const { date } = req.body; // Expect date input from the client
@@ -235,6 +237,9 @@ app.post('/schedule-meeting', async (req, res) => {
         // Create call
         await call.create(callData);
 
+        // Store the scheduled meeting in the in-memory array
+        scheduledMeetings.push({ callId, scheduledDate: date });
+
         res.json({ userId, token, callId, scheduledDate: date });
     } catch (error) {
         console.error('Error scheduling meeting:', error);
@@ -242,6 +247,10 @@ app.post('/schedule-meeting', async (req, res) => {
     }
 });
 
+// Endpoint to retrieve all scheduled meetings
+app.get('/scheduled-meetings', (req, res) => {
+    res.json(scheduledMeetings);
+});
 
 app.listen(port, () => {
     console.log(`Server is running on http://localhost:${port}`);
