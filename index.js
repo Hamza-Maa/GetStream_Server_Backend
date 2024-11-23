@@ -252,6 +252,24 @@ app.get('/scheduled-meetings', (req, res) => {
     res.json(scheduledMeetings);
 });
 
+// Endpoint to delete a scheduled meeting
+app.delete('/delete-meeting', (req, res) => {
+    try {
+        const { callId } = req.body;
+        if (!callId) {
+            return res.status(400).json({ error: 'Call ID is required' });
+        }
+
+        // Filter out the meeting with the given callId
+        scheduledMeetings = scheduledMeetings.filter(meeting => meeting.callId !== callId);
+
+        res.json({ success: true, message: 'Meeting deleted successfully' });
+    } catch (error) {
+        console.error('Error deleting meeting:', error);
+        res.status(500).json({ error: 'Internal Server Error' });
+    }
+});
+
 app.listen(port, () => {
     console.log(`Server is running on http://localhost:${port}`);
 });
