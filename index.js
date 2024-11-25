@@ -1,6 +1,7 @@
 const express = require('express');
 const { StreamClient } = require('@stream-io/node-sdk');
 const { v4: uuidv4 } = require('uuid');
+const { StreamChat } = require('stream-chat');
 
 const app = express();
 const port = 3000;
@@ -9,6 +10,7 @@ const apiKey = 'hnut54rtgksj'; // Replace with your actual API key
 const apiSecret = 'nr5pc64bjjdn6cbkycwdpv3qye9fsef54puhv7jjm3wqzhxk2fdurfhrsyb4gadx'; // Replace with your actual API secret
 
 const client = new StreamClient(apiKey, apiSecret, { timeout: 3000 });
+const chatClient = StreamChat.getInstance(apiKey, apiSecret);
 
 app.use(express.json());
 
@@ -74,22 +76,24 @@ app.post('/create-livestream', async (req, res) => {
             custom: { color: 'red' }
         };
 
-        // Create user
+        // Create user for video and chat APIs
         await client.upsertUsers([newUser]);
+        await chatClient.upsertUser(newUser);
 
-        const validityInSeconds = 60 * 60; // Token valid for 1 hour
-        const token = client.generateUserToken({
+        // Generate tokens
+        const videoToken = client.generateUserToken({
             user_id: userId,
-            validity_in_seconds: validityInSeconds
+            validity_in_seconds: 60 * 60 // Token valid for 1 hour
         });
 
+        const chatToken = chatClient.createToken(userId);
+
+        // Create a live stream call
         const callType = 'livestream';
         const callId = `channel_${Math.floor(10000 + Math.random() * 90000)}`;
         const call = client.video.call(callType, callId);
 
-        const members = [
-            { user_id: userId, role: 'admin' }
-        ];
+        const members = [{ user_id: userId, role: 'admin' }];
         const customData = { color: 'blue' };
 
         const callData = {
@@ -100,18 +104,18 @@ app.post('/create-livestream', async (req, res) => {
             }
         };
 
-        // Create call
         await call.create(callData);
 
         // Set the call live
         await call.goLive({ start_hls: true, start_recording: true });
 
-        res.json({ userId, token, callId });
+        res.json({ userId, videoToken, chatToken, callId });
     } catch (error) {
         console.error('Error creating livestream:', error);
         res.status(500).json({ error: 'Internal Server Error' });
     }
 });
+
 
 // Endpoint to join a call with new user ID
 app.post('/join-call', async (req, res) => {
@@ -158,9 +162,11 @@ app.post('/join-call', async (req, res) => {
 app.post('/join-livestream', async (req, res) => {
     try {
         const { callId } = req.body;
-        const userId = uuidv4(); // Generate a unique user ID
+        if (!callId) {
+            return res.status(400).json({ error: 'Call ID is required' });
+        }
 
-        // Create a new user
+        const userId = uuidv4(); // Generate a unique user ID
         const newUser = {
             id: userId,
             role: 'user',
@@ -169,14 +175,17 @@ app.post('/join-livestream', async (req, res) => {
             custom: { color: 'green' }
         };
 
+        // Register user in both systems
         await client.upsertUsers([newUser]);
+        await chatClient.upsertUser(newUser);
 
-        // Generate a token for the new user
-        const validityInSeconds = 60 * 60; // Token valid for 1 hour
-        const token = client.generateUserToken({
+        // Generate tokens
+        const videoToken = client.generateUserToken({
             user_id: userId,
-            validity_in_seconds: validityInSeconds
+            validity_in_seconds: 60 * 60
         });
+
+        const chatToken = chatClient.createToken(userId);
 
         // Add the user to the call
         const call = client.video.call('livestream', callId);
@@ -184,12 +193,13 @@ app.post('/join-livestream', async (req, res) => {
             update_members: [{ user_id: userId, role: 'user' }]
         });
 
-        res.json({ callId, userId, token });
+        res.json({ callId, userId, videoToken, chatToken });
     } catch (error) {
         console.error('Error joining live stream:', error);
         res.status(500).json({ error: 'Internal Server Error' });
     }
 });
+
 
 // Endpoint to schedule a video call
 app.post('/schedule-meeting', async (req, res) => {
